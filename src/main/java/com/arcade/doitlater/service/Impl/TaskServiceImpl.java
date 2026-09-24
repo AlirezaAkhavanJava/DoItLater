@@ -6,9 +6,11 @@ import com.arcade.doitlater.domain.entity.Task;
 import com.arcade.doitlater.domain.entity.TaskStatus;
 import com.arcade.doitlater.service.TaskService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -34,5 +36,10 @@ public class TaskServiceImpl implements TaskService {
                 now
         );
         return taskRepository.save(task);
+    }
+
+    @Override
+    public List<Task> listTasks() {
+        return taskRepository.findAll(Sort.by(Sort.Direction.ASC, "created"));
     }
 }

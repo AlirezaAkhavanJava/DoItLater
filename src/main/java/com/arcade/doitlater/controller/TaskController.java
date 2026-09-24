@@ -10,10 +10,9 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RequiredArgsConstructor
 @RestController
@@ -29,12 +28,22 @@ public class TaskController {
     ) {
         //Used in service layer - we are converting a createTaskRequestDto(From client) to CreateTaskRequest(to Service)
         CreateTaskRequest createdTaskRequest = taskMapper.fromDto(createTaskRequestDto);
+
         //calling and creating a createTaskRequest - Passing the created task request into the service layer
         Task task = taskService.createTask(createdTaskRequest);
+
         //to show a response to user
         TaskDto createdTaskDto = taskMapper.toDto(task);
         return new ResponseEntity<>(createdTaskDto, HttpStatus.CREATED);
 
+    }
+
+
+    @GetMapping()
+    public ResponseEntity<List<TaskDto>> listTasks() {
+        List<Task> tasks = taskService.listTasks();
+        List<TaskDto> taskDtoList = tasks.stream().map(taskMapper::toDto).toList();
+        return ResponseEntity.ok(taskDtoList);
 
     }
 
