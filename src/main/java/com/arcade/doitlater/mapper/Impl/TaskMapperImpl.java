@@ -1,8 +1,10 @@
 package com.arcade.doitlater.mapper.Impl;
 
 import com.arcade.doitlater.domain.CreateTaskRequest;
+import com.arcade.doitlater.domain.UpdateTaskRequest;
 import com.arcade.doitlater.domain.dto.CreateTaskRequestDto;
 import com.arcade.doitlater.domain.dto.TaskDto;
+import com.arcade.doitlater.domain.dto.UpdateTaskRequestDto;
 import com.arcade.doitlater.domain.entity.Task;
 import com.arcade.doitlater.mapper.TaskMapper;
 import com.arcade.doitlater.service.Impl.TaskServiceImpl;
@@ -38,6 +40,17 @@ public class TaskMapperImpl implements TaskMapper {
                 task.getDueDate(),
                 task.getPriority(),
                 task.getStatus()
+        );
+    }
+
+    @Override
+    public UpdateTaskRequest fromDto(UpdateTaskRequestDto requestDto) {
+        return new UpdateTaskRequest(
+                requestDto.title(),
+                requestDto.description(),
+                requestDto.dueDate(),
+                requestDto.status(),
+                requestDto.priority()
         );
     }
 }

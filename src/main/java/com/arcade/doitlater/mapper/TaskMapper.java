@@ -1,8 +1,10 @@
 package com.arcade.doitlater.mapper;
 
 import com.arcade.doitlater.domain.CreateTaskRequest;
+import com.arcade.doitlater.domain.UpdateTaskRequest;
 import com.arcade.doitlater.domain.dto.CreateTaskRequestDto;
 import com.arcade.doitlater.domain.dto.TaskDto;
+import com.arcade.doitlater.domain.dto.UpdateTaskRequestDto;
 import com.arcade.doitlater.domain.entity.Task;
 
 public interface TaskMapper {
@@ -19,4 +21,7 @@ public interface TaskMapper {
      * This will be sent to the client as the response of the Request
      */
     TaskDto toDto(Task task);
+
+
+    UpdateTaskRequest fromDto(UpdateTaskRequestDto requestDto);
 }
