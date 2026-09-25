@@ -15,4 +15,5 @@ public interface TaskService {
 
     Task updateTask(UUID taskId, UpdateTaskRequest request);
 
+    void removeTask(UUID id);
 }

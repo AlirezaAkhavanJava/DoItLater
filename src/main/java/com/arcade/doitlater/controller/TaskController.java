@@ -31,16 +31,12 @@ public class TaskController {
     ) {
         //Used in service layer - we are converting a createTaskRequestDto(From client) to CreateTaskRequest(to Service)
         CreateTaskRequest createdTaskRequest = taskMapper.fromDto(createTaskRequestDto);
-
         //calling and creating a createTaskRequest - Passing the created task request into the service layer
         Task task = taskService.createTask(createdTaskRequest);
-
         //to show a response to user
         TaskDto createdTaskDto = taskMapper.toDto(task);
         return new ResponseEntity<>(createdTaskDto, HttpStatus.CREATED);
-
     }
-
 
     @GetMapping()
     public ResponseEntity<List<TaskDto>> listTasks() {
@@ -58,6 +54,12 @@ public class TaskController {
         Task task = taskService.updateTask(taskId, updateTaskRequest);
         TaskDto taskDto = taskMapper.toDto(task);
         return ResponseEntity.ok(taskDto);
+    }
+
+    @DeleteMapping(path = "/delete/{uuid}")
+    public ResponseEntity<Void> removeTask(@PathVariable UUID uuid) {
+        taskService.removeTask(uuid);
+        return new ResponseEntity<>(HttpStatus.OK);
     }
 
 }
