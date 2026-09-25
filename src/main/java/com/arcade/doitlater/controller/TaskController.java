@@ -45,7 +45,7 @@ public class TaskController {
         return ResponseEntity.ok(taskDtoList);
     }
 
-    @PostMapping(path = "/{taskId}")
+    @PutMapping(path = "/{taskId}")
     public ResponseEntity<TaskDto> updateTask(
             @Valid @RequestBody UpdateTaskRequestDto updateTaskRequestDto,
             @PathVariable UUID taskId
