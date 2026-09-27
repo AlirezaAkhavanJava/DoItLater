@@ -148,6 +148,7 @@ application-prod.properties
 application-prod.yml
 application-secret.properties
 application-secret.yml
+local.properties
 
 # Keystores / certificates
 *.jks
