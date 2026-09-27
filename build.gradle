@@ -10,7 +10,7 @@ description = 'DoItLater is a task tracking application'
 
 java {
     toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
+        languageVersion = JavaLanguageVersion.of(25)
     }
 }
 
