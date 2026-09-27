@@ -17,9 +17,11 @@ public interface HabitService {
 
     WeekGridDto getWeekGrid(LocalDate weekStart);
 
+    HabitDto getHabit(Long id);
+
     HabitEntry toggleEntry(Long habitId, ToggleHabitEntryRequest request);
 
-    HabitDto getHabit(Long id);
     HabitDto updateHabit(Long id, CreateHabitRequest request);
+
     void deleteHabit(Long id);
 }

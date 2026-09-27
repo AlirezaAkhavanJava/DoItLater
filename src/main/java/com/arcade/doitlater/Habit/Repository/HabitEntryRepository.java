@@ -13,6 +13,8 @@ import java.util.Optional;
 @Repository
 public interface HabitEntryRepository extends JpaRepository<HabitEntry, Long> {
 
+    List<HabitEntry> findByHabitId(Long habitId);
+
     Optional<HabitEntry> findByHabitIdAndEntryDate(Long habitId, LocalDate date);
 
     List<HabitEntry> findByHabitIdAndEntryDateBetween(Long habitId, LocalDate start, LocalDate end);
@@ -26,6 +28,4 @@ public interface HabitEntryRepository extends JpaRepository<HabitEntry, Long> {
             @Param("habitIds") List<Long> habitIds,
             @Param("start") LocalDate start,
             @Param("end") LocalDate end);
-
-    List<HabitEntry> findByHabitId(Long habitId);
 }

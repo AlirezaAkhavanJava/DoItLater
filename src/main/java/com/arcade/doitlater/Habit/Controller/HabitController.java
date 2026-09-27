@@ -30,22 +30,33 @@ public class HabitController {
     private final HabitMapper habitMapper;
     private final HabitService habitService;
 
+    // ------------------------------------------------------------
+    //  Create
+    // ------------------------------------------------------------
     @PostMapping(path = "/create")
     public ResponseEntity<HabitDto> createHabit(
             @Valid @RequestBody CreateHabitRequestDto dto) {
 
         CreateHabitRequest request = habitMapper.fromDto(dto);
         Habit habit = habitService.createNewHabit(request);
-        HabitDto response = habitMapper.toDto(habit, List.of(), 7);
+
+        // Brand-new habit: no entries, totalDays = 0
+        HabitDto response = habitMapper.toDto(habit, List.of(), 0);
 
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
+    // ------------------------------------------------------------
+    //  Read: list
+    // ------------------------------------------------------------
     @GetMapping
     public ResponseEntity<List<HabitDto>> getAllHabits() {
         return ResponseEntity.ok(habitService.findAll());
     }
 
+    // ------------------------------------------------------------
+    //  Read: week grid
+    // ------------------------------------------------------------
     @GetMapping("/week")
     public ResponseEntity<WeekGridDto> getWeekGrid(
             @RequestParam(required = false)
@@ -58,6 +69,17 @@ public class HabitController {
         return ResponseEntity.ok(habitService.getWeekGrid(start));
     }
 
+    // ------------------------------------------------------------
+    //  Read: single habit (with full history — for detail page)
+    // ------------------------------------------------------------
+    @GetMapping("/{id}")
+    public ResponseEntity<HabitDto> getHabit(@PathVariable Long id) {
+        return ResponseEntity.ok(habitService.getHabit(id));
+    }
+
+    // ------------------------------------------------------------
+    //  Write: toggle today's entry
+    // ------------------------------------------------------------
     @PostMapping("/{habitId}/entries")
     public ResponseEntity<HabitEntryDto> toggleEntry(
             @PathVariable Long habitId,
@@ -68,24 +90,24 @@ public class HabitController {
         return ResponseEntity.ok(habitMapper.toDto(saved));
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<HabitDto> getHabit(@PathVariable Long id) {
-        return ResponseEntity.ok(habitService.getHabit(id));
-    }
-
+    // ------------------------------------------------------------
+    //  Write: update
+    // ------------------------------------------------------------
     @PutMapping("/{id}")
     public ResponseEntity<HabitDto> updateHabit(
             @PathVariable Long id,
             @Valid @RequestBody CreateHabitRequestDto dto) {
+
         CreateHabitRequest request = habitMapper.fromDto(dto);
         return ResponseEntity.ok(habitService.updateHabit(id, request));
     }
 
+    // ------------------------------------------------------------
+    //  Write: delete
+    // ------------------------------------------------------------
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteHabit(@PathVariable Long id) {
         habitService.deleteHabit(id);
         return ResponseEntity.noContent().build();
     }
-
-
 }

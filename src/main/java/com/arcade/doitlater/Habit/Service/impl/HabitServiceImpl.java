@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,46 +34,9 @@ public class HabitServiceImpl implements HabitService {
     private final HabitEntryRepository habitEntryRepository;
     private final HabitMapper habitMapper;
 
-    @Override
-    @Transactional(readOnly = true)
-    public HabitDto getHabit(Long id) {
-        Habit habit = habitRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Habit not found: " + id));
-
-        List<HabitEntry> entries = habitEntryRepository.findByHabitId(habit.getId());
-        int total = entries.size();
-        if (total == 0) total = 7; // fallback so rate isn't NaN for brand-new habits
-
-        return habitMapper.toDto(habit, entries, total);
-    }
-
-    @Override
-    @Transactional
-    public HabitDto updateHabit(Long id, CreateHabitRequest request) {
-        Habit habit = habitRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Habit not found: " + id));
-
-        habit.setName(request.name());
-        habit.setDescription(request.description());
-        habit.setPriority(request.priority());
-
-        Habit saved = habitRepository.save(habit);
-        List<HabitEntry> entries = habitEntryRepository.findByHabitId(saved.getId());
-        int total = entries.isEmpty() ? 7 : entries.size();
-
-        return habitMapper.toDto(saved, entries, total);
-    }
-
-    @Override
-    @Transactional
-    public void deleteHabit(Long id) {
-        if (!habitRepository.existsById(id)) {
-            throw new IllegalArgumentException("Habit not found: " + id);
-        }
-        habitRepository.deleteById(id); // cascade removes entries
-    }
-
-
+    // ------------------------------------------------------------
+    //  Create
+    // ------------------------------------------------------------
     @Override
     @Transactional
     public Habit createNewHabit(CreateHabitRequest request) {
@@ -84,14 +48,24 @@ public class HabitServiceImpl implements HabitService {
         return habitRepository.save(habit);
     }
 
+    // ------------------------------------------------------------
+    //  Read: all habits
+    // ------------------------------------------------------------
     @Override
     @Transactional(readOnly = true)
     public List<HabitDto> findAll() {
         return habitRepository.findAllByOrderByCreatedDateDesc().stream()
-                .map(h -> habitMapper.toDto(h, List.of(), DAYS_IN_WEEK))
+                .map(h -> {
+                    List<HabitEntry> entries = habitEntryRepository.findByHabitId(h.getId());
+                    int total = computeTotalDays(h, LocalDate.now().minusYears(10), LocalDate.now());
+                    return habitMapper.toDto(h, entries, total);
+                })
                 .toList();
     }
 
+    // ------------------------------------------------------------
+    //  Read: week grid
+    // ------------------------------------------------------------
     @Override
     @Transactional(readOnly = true)
     public WeekGridDto getWeekGrid(LocalDate weekStart) {
@@ -109,11 +83,12 @@ public class HabitServiceImpl implements HabitService {
                 .collect(Collectors.groupingBy(e -> e.getHabit().getId()));
 
         List<HabitDto> habitDtos = habits.stream()
-                .map(h -> habitMapper.toDto(
-                        h,
-                        entriesByHabit.getOrDefault(h.getId(), List.of()),
-                        DAYS_IN_WEEK
-                ))
+                .map(h -> {
+                    List<HabitEntry> hEntries =
+                            entriesByHabit.getOrDefault(h.getId(), List.of());
+                    int total = computeTotalDays(h, start, end);
+                    return habitMapper.toDto(h, hEntries, total);
+                })
                 .toList();
 
         List<LocalDate> days = IntStream.range(0, DAYS_IN_WEEK)
@@ -123,11 +98,34 @@ public class HabitServiceImpl implements HabitService {
         return new WeekGridDto(start, end, formatRange(start, end), days, habitDtos);
     }
 
+    // ------------------------------------------------------------
+    //  Read: one habit with ALL its entries (for detail page)
+    // ------------------------------------------------------------
+    @Override
+    @Transactional(readOnly = true)
+    public HabitDto getHabit(Long id) {
+        Habit habit = habitRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Habit not found: " + id));
+
+        List<HabitEntry> entries = habitEntryRepository.findByHabitId(id);
+        int total = computeTotalDays(habit, LocalDate.now().minusYears(10), LocalDate.now());
+
+        return habitMapper.toDto(habit, entries, total);
+    }
+
+    // ------------------------------------------------------------
+    //  Write: toggle today's entry (upsert)
+    // ------------------------------------------------------------
     @Override
     @Transactional
     public HabitEntry toggleEntry(Long habitId, ToggleHabitEntryRequest request) {
         Habit habit = habitRepository.findById(habitId)
                 .orElseThrow(() -> new IllegalArgumentException("Habit not found: " + habitId));
+
+        // Enforce: only today can be toggled
+        if (!request.entryDate().equals(LocalDate.now())) {
+            throw new IllegalArgumentException("Only today's entry can be toggled");
+        }
 
         HabitEntry entry = habitEntryRepository
                 .findByHabitIdAndEntryDate(habitId, request.entryDate())
@@ -147,11 +145,67 @@ public class HabitServiceImpl implements HabitService {
         return habitEntryRepository.save(entry);
     }
 
+    // ------------------------------------------------------------
+    //  Write: update
+    // ------------------------------------------------------------
+    @Override
+    @Transactional
+    public HabitDto updateHabit(Long id, CreateHabitRequest request) {
+        Habit habit = habitRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Habit not found: " + id));
+
+        habit.setName(request.name());
+        habit.setDescription(request.description());
+        habit.setPriority(request.priority());
+
+        Habit saved = habitRepository.save(habit);
+
+        List<HabitEntry> entries = habitEntryRepository.findByHabitId(id);
+        int total = computeTotalDays(saved, LocalDate.now().minusYears(10), LocalDate.now());
+
+        return habitMapper.toDto(saved, entries, total);
+    }
+
+    // ------------------------------------------------------------
+    //  Write: delete
+    // ------------------------------------------------------------
+    @Override
+    @Transactional
+    public void deleteHabit(Long id) {
+        if (!habitRepository.existsById(id)) {
+            throw new IllegalArgumentException("Habit not found: " + id);
+        }
+        habitRepository.deleteById(id);
+    }
+
+    // ------------------------------------------------------------
+    //  Helpers
+    // ------------------------------------------------------------
+
+    /**
+     * Number of days the habit has existed for, capped to the given window,
+     * excluding today (a day only counts as "failed" once it is over).
+     */
+    private int computeTotalDays(Habit habit, LocalDate windowStart, LocalDate windowEnd) {
+        if (habit.getCreatedDate() == null) return 0;
+
+        LocalDate created = habit.getCreatedDate().toLocalDate();
+        LocalDate today = LocalDate.now();
+
+        LocalDate effStart = created.isAfter(windowStart) ? created : windowStart;
+        LocalDate effEnd = today.isBefore(windowEnd) ? today : windowEnd;
+
+        // Today doesn't count as failed yet
+        if (effEnd.equals(today)) {
+            effEnd = effEnd.minusDays(1);
+        }
+
+        if (effEnd.isBefore(effStart)) return 0;
+        return (int) ChronoUnit.DAYS.between(effStart, effEnd) + 1;
+    }
+
     private String formatRange(LocalDate start, LocalDate end) {
         DateTimeFormatter fmt = DateTimeFormatter.ofPattern("MMM d");
         return start.format(fmt) + " - " + end.format(DateTimeFormatter.ofPattern("MMM d, yyyy"));
     }
-
-
-
 }
