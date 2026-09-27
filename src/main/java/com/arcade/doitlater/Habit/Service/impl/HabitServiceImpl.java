@@ -57,7 +57,12 @@ public class HabitServiceImpl implements HabitService {
         return habitRepository.findAllByOrderByCreatedDateDesc().stream()
                 .map(h -> {
                     List<HabitEntry> entries = habitEntryRepository.findByHabitId(h.getId());
-                    int total = computeTotalDays(h, LocalDate.now().minusYears(10), LocalDate.now());
+                    int total = computeTotalDays(
+                            h,
+                            LocalDate.now().minusYears(10),
+                            LocalDate.now(),
+                            entries
+                    );
                     return habitMapper.toDto(h, entries, total);
                 })
                 .toList();
@@ -86,7 +91,7 @@ public class HabitServiceImpl implements HabitService {
                 .map(h -> {
                     List<HabitEntry> hEntries =
                             entriesByHabit.getOrDefault(h.getId(), List.of());
-                    int total = computeTotalDays(h, start, end);
+                    int total = computeTotalDays(h, start, end, hEntries);
                     return habitMapper.toDto(h, hEntries, total);
                 })
                 .toList();
@@ -108,7 +113,12 @@ public class HabitServiceImpl implements HabitService {
                 .orElseThrow(() -> new IllegalArgumentException("Habit not found: " + id));
 
         List<HabitEntry> entries = habitEntryRepository.findByHabitId(id);
-        int total = computeTotalDays(habit, LocalDate.now().minusYears(10), LocalDate.now());
+        int total = computeTotalDays(
+                habit,
+                LocalDate.now().minusYears(10),
+                LocalDate.now(),
+                entries
+        );
 
         return habitMapper.toDto(habit, entries, total);
     }
@@ -122,7 +132,6 @@ public class HabitServiceImpl implements HabitService {
         Habit habit = habitRepository.findById(habitId)
                 .orElseThrow(() -> new IllegalArgumentException("Habit not found: " + habitId));
 
-        // Enforce: only today can be toggled
         if (!request.entryDate().equals(LocalDate.now())) {
             throw new IllegalArgumentException("Only today's entry can be toggled");
         }
@@ -161,7 +170,12 @@ public class HabitServiceImpl implements HabitService {
         Habit saved = habitRepository.save(habit);
 
         List<HabitEntry> entries = habitEntryRepository.findByHabitId(id);
-        int total = computeTotalDays(saved, LocalDate.now().minusYears(10), LocalDate.now());
+        int total = computeTotalDays(
+                saved,
+                LocalDate.now().minusYears(10),
+                LocalDate.now(),
+                entries
+        );
 
         return habitMapper.toDto(saved, entries, total);
     }
@@ -183,10 +197,17 @@ public class HabitServiceImpl implements HabitService {
     // ------------------------------------------------------------
 
     /**
-     * Number of days the habit has existed for, capped to the given window,
-     * excluding today (a day only counts as "failed" once it is over).
+     * Number of days the habit has existed for, capped to the given window.
+     * Rules:
+     *   - Past days (before today) always count toward the total.
+     *   - Today counts ONLY if today's entry is already marked completed.
+     *     This way you're never "failed" for a day that isn't over yet,
+     *     but if you HAVE completed today, it counts (so 1/1 = 100%).
      */
-    private int computeTotalDays(Habit habit, LocalDate windowStart, LocalDate windowEnd) {
+    private int computeTotalDays(Habit habit,
+                                 LocalDate windowStart,
+                                 LocalDate windowEnd,
+                                 List<HabitEntry> entries) {
         if (habit.getCreatedDate() == null) return 0;
 
         LocalDate created = habit.getCreatedDate().toLocalDate();
@@ -195,8 +216,14 @@ public class HabitServiceImpl implements HabitService {
         LocalDate effStart = created.isAfter(windowStart) ? created : windowStart;
         LocalDate effEnd = today.isBefore(windowEnd) ? today : windowEnd;
 
-        // Today doesn't count as failed yet
-        if (effEnd.equals(today)) {
+        boolean todayCompleted = entries.stream()
+                .anyMatch(e ->
+                        e.getEntryDate() != null
+                                && e.getEntryDate().equals(today)
+                                && Boolean.TRUE.equals(e.getCompleted())
+                );
+
+        if (effEnd.equals(today) && !todayCompleted) {
             effEnd = effEnd.minusDays(1);
         }
 
