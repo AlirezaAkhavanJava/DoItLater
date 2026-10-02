@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.arcade'
-version = '0.0.1-SNAPSHOT'
+version = '1.0.0'
 description = 'DoItLater is a task tracking application'
 
 java {
